@@ -52,7 +52,7 @@ const DB={
   },
   save(d){ localStorage.setItem(STORAGE_KEY,JSON.stringify(d)); },
   seed(){
-    const today=new Date().toISOString().slice(0,10);
+    const today=todayLocalDate();
     return {
       schemaVersion:SCHEMA_VERSION,
       settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
@@ -89,6 +89,19 @@ function padLeft(t,n){return (' '.repeat(n)+t).slice(-n);}
 function repeat(ch,n){return new Array(n+1).join(ch);}
 function truncate(s,n){s=String(s);return s.length>n?s.slice(0,n-1)+'…':s;}
 function center(t){const w=32;const p=Math.max(0,Math.floor((w-t.length)/2));return ' '.repeat(p)+t;}
+
+// === Local time helpers (v4.6) ===
+function todayLocalDate(){
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0,10);
+}
+function nowLocalISO(){
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().replace('Z',''); // local ISO without Z
+}
+
 
 function setCssVars(){
   const th=state.settings.theme;
@@ -156,7 +169,7 @@ const Backup={
 
 const Dashboard={
   init(){
-    const t=new Date().toISOString().slice(0,10);
+    const t=todayLocalDate();
     const ini=document.getElementById('dashIni'); const fin=document.getElementById('dashFin');
     ini.value=t; fin.value=t;
     ini.onchange=Dashboard.render; fin.onchange=Dashboard.render;
@@ -172,7 +185,7 @@ const Dashboard={
     });
   },
   render(){
-    const today=new Date().toISOString().slice(0,10);
+    const today=todayLocalDate();
     const ventasHoy=state.sales.filter(s=>s.fecha.slice(0,10)===today && s.estado!=='cancelada');
     const totalHoy=ventasHoy.reduce((a,s)=>a+s.total,0);
     const utilidad=ventasHoy.reduce((a,s)=>a+((s.total-s.iva)-(s.subtotalCosto||0)),0);
@@ -283,7 +296,7 @@ const Ventas={
     document.getElementById('ventaProductoBox').classList.toggle('hidden', this.tipo!=='producto');
     document.getElementById('ventaMembresiaBox').classList.add('hidden'); // v4.5: membresías solo en módulo Membresías
     this.renderCarrito();
-    const t=new Date().toISOString().slice(0,10);
+    const t=todayLocalDate();
     document.getElementById('vMemInicio').value=t;
     // set default fin according to selected type
     this.updateMemFin();
@@ -352,7 +365,7 @@ const Ventas={
     const sel=document.getElementById('vMemTipo'); if(!sel) return;
     const tipo=sel.value;
     const tinfo=(state.settings.tiposMembresia||[]).find(t=>t.nombre===tipo) || {dias:0};
-    const ini=document.getElementById('vMemInicio').value || new Date().toISOString().slice(0,10);
+    const ini=document.getElementById('vMemInicio').value || todayLocalDate();
     const d=new Date(ini); d.setDate(d.getDate() + (tinfo.dias||0));
     document.getElementById('vMemFin').value = d.toISOString().slice(0,10);
   },
@@ -412,7 +425,7 @@ const Ventas={
         return {sku:it.sku,nombre:it.nombre,precio:it.precio,costo:prod?.costo||0,qty:it.qty};
       }
     });
-    const venta={folio,fecha:new Date().toISOString(),items,subtotal:totals.subtotal,iva:totals.iva,total:totals.total,cliente,notas:state.settings.mensaje||'',pago:{tipo:(document.getElementById('ventaPago')?.value||'efectivo')},estado:'completada'};
+    const venta={folio,fecha:nowLocalISO(),items,subtotal:totals.subtotal,iva:totals.iva,total:totals.total,cliente,notas:state.settings.mensaje||'',pago:{tipo:(document.getElementById('ventaPago')?.value||'efectivo')},estado:'completada'};
     venta.subtotalCosto=items.reduce((a,i)=>a+(i.costo||0)*i.qty,0);
     venta.ganancia=(venta.total-venta.iva)-venta.subtotalCosto;
     state.sales.unshift(venta); DB.save(state);
@@ -489,7 +502,7 @@ entrada(sku){
   if(!qty || qty<=0) return;
   p.stock = (p.stock||0) + qty;
   p.movs = p.movs||[];
-  p.movs.push({fecha:new Date().toISOString(), tipo:'ENTRADA_MANUAL', cantidad:+qty, stockFinal:p.stock, nota:'Manual'});
+  p.movs.push({fecha:nowLocalISO(), tipo:'ENTRADA_MANUAL', cantidad:+qty, stockFinal:p.stock, nota:'Manual'});
   DB.save(state);
   this.renderTabla();
   alert('Stock actualizado: '+p.stock);
@@ -596,7 +609,7 @@ const Membresias={
     const folio='T'+Date.now().toString().slice(-8);
     const item={sku:'SERV-MEM', nombre:'Membresía '+tipo, precio:tinfo.precio, qty:1, _isService:true, mem:{tipo,inicio,fin}};
     const subtotal=item.precio, iva=subtotal*(state.settings.iva||0)/100, total=subtotal+iva;
-    const venta={folio,fecha:new Date().toISOString(),items:[item],subtotal,iva,total,cliente,notas:state.settings.mensaje||'', pago:{tipo:pagoSel}, estado:'completada'};
+    const venta={folio,fecha:nowLocalISO(),items:[item],subtotal,iva,total,cliente,notas:state.settings.mensaje||'', pago:{tipo:pagoSel}, estado:'completada'};
     venta.subtotalCosto=0; venta.ganancia=(venta.total-venta.iva);
     state.sales.unshift(venta);
     // Registrar membresía
@@ -611,7 +624,7 @@ const Membresias={
     const pag=document.getElementById('memPago'); if(pag) pag.value='efectivo';
     const notas=document.getElementById('memNotas'); if(notas) notas.value='';
     const tipoSel=document.getElementById('memTipo'); if(tipoSel && tipoSel.options.length) tipoSel.selectedIndex=0;
-    const hoy=new Date().toISOString().slice(0,10);
+    const hoy=todayLocalDate();
     const ini=document.getElementById('memInicio'); if(ini) ini.value=hoy;
     Membresias.changeTipo(); // recalcula fin
   },
@@ -622,7 +635,7 @@ const Membresias={
     document.getElementById('memClienteId').value='';
     document.getElementById('memClienteResults').innerHTML='';
     document.getElementById('memClienteResults').classList.add('hidden');
-    const t=new Date().toISOString().slice(0,10);
+    const t=todayLocalDate();
     document.getElementById('memInicio').value=t;
     this.changeTipo();
   },
@@ -647,7 +660,7 @@ const Membresias={
   changeTipo(){
     const tipo=document.getElementById('memTipo').value;
     const tinfo=(state.settings.tiposMembresia||[]).find(t=>t.nombre===tipo) || {dias:0};
-    const ini=document.getElementById('memInicio').value||new Date().toISOString().slice(0,10);
+    const ini=document.getElementById('memInicio').value||todayLocalDate();
     const d=new Date(ini); d.setDate(d.getDate()+(tinfo.dias||0));
     document.getElementById('memFin').value=d.toISOString().slice(0,10);
   },
@@ -664,7 +677,7 @@ const Membresias={
     DB.save(state); this.renderTabla(); alert('Membresía registrada.');
   },
   status(m){
-    const t=new Date().toISOString().slice(0,10);
+    const t=todayLocalDate();
     if(m.fin<t)return'vencida';
     const days=Math.ceil((new Date(m.fin)-new Date(t))/(1000*60*60*24));
     if(days<=5)return'próxima';
@@ -993,7 +1006,7 @@ window.addEventListener('DOMContentLoaded',UI.init);
         const val=prompt('Cantidad a ingresar para '+p.nombre+':','1');
         const qty=parseInt(val||'0',10); if(!qty||qty<=0) return;
         p.stock=(p.stock||0)+qty;
-        p.movs=p.movs||[]; p.movs.push({fecha:new Date().toISOString(), tipo:'ENTRADA_MANUAL', cantidad:+qty, stockFinal:p.stock, nota:'Manual'});
+        p.movs=p.movs||[]; p.movs.push({fecha:nowLocalISO(), tipo:'ENTRADA_MANUAL', cantidad:+qty, stockFinal:p.stock, nota:'Manual'});
         DB.save(state);
         if(Inventario.renderTabla) Inventario.renderTabla();
         alert('Stock actualizado: '+p.stock);
@@ -1028,11 +1041,11 @@ window.addEventListener('DOMContentLoaded',UI.init);
             const p=(state.products||[]).find(x=>x.sku===i.sku);
             if(p){
               p.stock=(p.stock||0)+(i.qty||0);
-              p.movs=p.movs||[]; p.movs.push({fecha:new Date().toISOString(), tipo:'CANCELACION', cantidad:+(i.qty||0), stockFinal:p.stock, ref:folio});
+              p.movs=p.movs||[]; p.movs.push({fecha:nowLocalISO(), tipo:'CANCELACION', cantidad:+(i.qty||0), stockFinal:p.stock, ref:folio});
             }
           }
         });
-        s.estado='cancelada'; s.cancelInfo={fecha:new Date().toISOString(), usuario:'admin'};
+        s.estado='cancelada'; s.cancelInfo={fecha:nowLocalISO(), usuario:'admin'};
         DB.save(state);
         if(Dashboard&&Dashboard.render) Dashboard.render();
         if(Inventario&&Inventario.renderTabla) Inventario.renderTabla();
