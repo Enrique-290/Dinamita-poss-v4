@@ -1,0 +1,45 @@
+<!doctype html><meta charset="utf-8">
+<title>Productos – Dinamita Admin</title>
+<link rel="stylesheet" href="styles.css">
+<aside class="side">
+  <div class="brand">DINAMITA • ADMIN</div>
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="productos.html">Productos</a>
+    <a href="imagenes.html">Imágenes</a>
+    <a href="config.html">Configuración</a>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="#" id="logout">Salir</a>
+  </nav>
+</aside>
+<main class="content">
+  <h1>Productos</h1>
+  <div class="filters">
+    <input placeholder="Buscar">
+    <select><option>Todos</option><option>Suplementos</option><option>Accesorios</option></select>
+  </div>
+  <table class="table" id="tblProducts">
+    <thead><tr><th>Nombre</th><th>Marca</th><th>Categoría</th><th>Precio</th><th>Best</th></tr></thead>
+    <tbody>
+      <tr><td>Mutant Mass 2.27kg</td><td>Mutant</td><td>suplementos</td><td>$ 1,499</td><td>✓</td></tr>
+      <tr><td>Shaker 700ml</td><td>Dinamita</td><td>accesorios</td><td>$ 199</td><td>✓</td></tr>
+    </tbody>
+  </table>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+import { firebaseConfig, allowedAdmins } from "./firebase-config.js";
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+onAuthStateChanged(auth, async (user)=>{
+  const ok = user && allowedAdmins.includes((user.email||'').toLowerCase());
+  if(!ok){ await signOut(auth); location.href='index.html'; }
+});
+document.addEventListener('DOMContentLoaded', ()=>{
+  const lo = document.getElementById('logout');
+  if (lo) lo.addEventListener('click', async (e)=>{ e.preventDefault(); await signOut(auth); location.href='index.html'; });
+});
+</script>
+
